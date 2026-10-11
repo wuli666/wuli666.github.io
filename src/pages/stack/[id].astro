@@ -1,0 +1,188 @@
+---
+import { getCollection, getEntry, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PostList from '../../components/PostList.astro';
+import { layers } from '../../stack';
+
+export function getStaticPaths() {
+  return layers.map((l) => ({ params: { id: l.id } }));
+}
+
+const { id } = Astro.params;
+const k = layers.findIndex((l) => l.id === id);
+const layer = layers[k];
+const entry = await getEntry('stack', id);
+if (!entry) throw new Error(`缺少 src/content/stack/${id}.md`);
+const { Content } = await render(entry);
+const posts = (await getCollection('blog', ({ data }) => data.layer === id && (import.meta.env.DEV || !data.draft)))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const above = layers[k + 1];
+const below = layers[k - 1];
+---
+
+<Base title={layer.name} description={entry.data.summary}>
+  <main class="wrap" style={`--c: var(--${id})`}>
+    <section class="hero">
+      <div>
+        <h1 class="words"><span class="w" style="--d:0">{layer.name}</span></h1>
+        <p class="lede rise" style="--delay:0.4s">{entry.data.summary}</p>
+        <nav class="layers rise" style="--delay:0.6s" aria-label="Layers of the stack">
+          {[...layers].reverse().map((l) => (
+            <a href={`/stack/${l.id}/`} aria-current={l.id === id ? 'page' : undefined}>
+              <span class="mark" data-layer={l.id} aria-hidden="true" />
+              {l.name}
+            </a>
+          ))}
+        </nav>
+      </div>
+
+      <!-- 这一层单独拿出来；虚线框是它在栈里的上下邻居 -->
+      <div class="stage" aria-hidden="true">
+        <div class="scene">
+          <div class="float">
+            {layers.map((_, j) => j !== k && <span class="ghost" style={`--o:${j - k}`} />)}
+            <span class="layer" data-layer={id} data-path={layer.path && JSON.stringify(layer.path)}>
+              {layer.cells.map((v) => <i data-v={v} />)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <article class="prose rise" style="--delay:0.8s">
+      <Content />
+    </article>
+
+    {posts.length > 0 && (
+      <section class="notes">
+        <h2 class="section" data-scramble="enter">Notes on this layer</h2>
+        <PostList posts={posts} />
+      </section>
+    )}
+
+    <nav class="updown" aria-label="Neighbouring layers">
+      {above && <a href={`/stack/${above.id}/`}><span>Layer above</span>{above.name}</a>}
+      {below && <a href={`/stack/${below.id}/`}><span>Layer below</span>{below.name}</a>}
+    </nav>
+  </main>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 2rem;
+    min-height: min(64vh, 38rem);
+  }
+  h1 {
+    font-size: clamp(3.25rem, 1.5rem + 6vw, 6.5rem);
+    font-weight: 500;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin: 0 0 1.25rem;
+    color: var(--c);
+  }
+  .lede { font-size: 1.25rem; color: var(--muted); max-width: 30rem; margin: 0 0 2rem; }
+  .layers { display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; }
+  .layers a { display: flex; align-items: center; gap: 0.7rem; color: var(--muted); text-decoration: none; }
+  .layers a:hover, .layers a[aria-current] { color: var(--ink); }
+  .layers a[aria-current] { font-weight: 600; }
+  .layers .mark { transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.25, 1.2); }
+  .layers a:hover .mark, .layers a[aria-current] .mark { transform: rotate(225deg) scale(1.35); }
+
+  /* ---------- 单独的一层 ---------- */
+  .stage {
+    --rx: 58deg;
+    --rz: -42deg;
+    display: grid;
+    place-items: center;
+    height: 28rem;
+    perspective: 2000px;
+  }
+  .scene {
+    position: relative;
+    width: 17rem;
+    height: 17rem;
+    transform-style: preserve-3d;
+    transform: rotateX(var(--rx)) rotateZ(var(--rz));
+    transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .float {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    animation: bob 5s ease-in-out infinite;
+  }
+  @keyframes bob { 50% { transform: translateZ(1.25rem); } }
+  .stage .layer {
+    position: absolute;
+    inset: 0;
+    animation: land 1.1s cubic-bezier(0.2, 0.9, 0.25, 1.12) 0.1s backwards;
+  }
+  .ghost {
+    position: absolute;
+    inset: 0;
+    border: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent);
+    transform: translateZ(calc(var(--o) * 5.5rem));
+    animation: show 0.6s 0.9s backwards;
+  }
+
+  /* ---------- 正文 ---------- */
+  .prose { margin-top: 2rem; }
+  .notes { margin-top: 5rem; }
+  .updown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 4rem;
+    margin-top: 5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+  }
+  .updown a { display: flex; flex-direction: column; text-decoration: none; font-size: 1.25rem; font-weight: 500; }
+  .updown a:hover { color: var(--c); }
+  .updown span { font-size: 0.875rem; font-weight: 400; color: var(--muted); }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; min-height: 0; padding-top: 2rem; }
+    .stage { height: 20rem; }
+    .scene { width: 11rem; height: 11rem; }
+    .ghost { transform: translateZ(calc(var(--o) * 3.5rem)); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .float, .stage .layer, .ghost { animation: none; }
+    .scene { transition: none; }
+  }
+</style>
+
+<script>
+  import { motion } from '../../scripts/fx';
+  import { glow, reactor } from '../../scripts/stack';
+
+  const stage = document.querySelector<HTMLElement>('.stage')!;
+  const layer = stage.querySelector<HTMLElement>('.layer')!;
+
+  if (motion) {
+    // 这一层自己一直在"干活"
+    const tick = reactor(layer);
+    setTimeout(
+      () =>
+        setInterval(() => {
+          if (document.hidden) return;
+          tick();
+          glow(layer);
+        }, 1600),
+      1200,
+    );
+
+    addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const r = stage.getBoundingClientRect();
+      const dx = (e.clientX - r.left - r.width / 2) / innerWidth;
+      const dy = (e.clientY - r.top - r.height / 2) / innerHeight;
+      stage.style.setProperty('--rz', `${-42 + dx * 40}deg`);
+      stage.style.setProperty('--rx', `${58 - dy * 24}deg`);
+    });
+  }
+</script>

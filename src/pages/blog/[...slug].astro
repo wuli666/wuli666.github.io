@@ -1,0 +1,68 @@
+---
+// katex 的版本要和 rehype-katex 自带的一致，否则 CSS 类名对不上
+import 'katex/dist/katex.min.css';
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => import.meta.env.DEV || !data.draft);
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const { title, date, description, layer, lang } = post.data;
+---
+
+<Base title={title} description={description} lang={lang}>
+  <div class="progress" data-layer={layer} aria-hidden="true"></div>
+  <main class="wrap">
+    <article>
+      <header>
+        <p class="meta">
+          <span class="mark" data-layer={layer} aria-hidden="true"></span>
+          <time datetime={date.toISOString()}>{date.toISOString().slice(0, 10)}</time>
+          {layer && <a href={`/stack/${layer}/`}>{layer}</a>}
+        </p>
+        <h1 class="words">
+          {title.split(' ').map((w, i) => (
+            <Fragment>
+              <span class="w" style={`--d:${i}`}>{w}</span>{' '}
+            </Fragment>
+          ))}
+        </h1>
+        {description && <p class="lede rise" style="--delay:0.5s">{description}</p>}
+      </header>
+      <div class="prose rise" style="--delay:0.7s">
+        <Content />
+      </div>
+    </article>
+  </main>
+</Base>
+
+<style>
+  header { max-width: var(--measure); margin: 3rem 0 3rem; }
+  .meta { display: flex; align-items: center; gap: 0.75rem; color: var(--muted); font-size: 0.875rem; margin: 0 0 1rem; }
+  h1 { font-size: clamp(1.9rem, 1.3rem + 2vw, 2.75rem); font-weight: 500; line-height: 1.2; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+  .lede { color: var(--muted); font-size: 1.125rem; margin: 1rem 0 0; }
+
+  /* 阅读进度条，颜色跟文章的 layer 走；不支持滚动时间线的浏览器就不显示 */
+  .progress { display: none; }
+  @supports (animation-timeline: scroll()) {
+    .progress {
+      display: block;
+      position: fixed;
+      inset: 0 0 auto;
+      height: 2px;
+      z-index: 10;
+      background: var(--agent);
+      transform-origin: 0 50%;
+      animation: grow linear both;
+      animation-timeline: scroll(root);
+    }
+    .progress[data-layer='serving'] { background: var(--serving); }
+    .progress[data-layer='kernel'] { background: var(--kernel); }
+    .progress[data-layer='gpu'] { background: var(--gpu); }
+  }
+  @keyframes grow { from { transform: scaleX(0); } }
+</style>

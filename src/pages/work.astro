@@ -1,0 +1,198 @@
+---
+import Base from '../layouts/Base.astro';
+import { layers } from '../stack';
+
+// anchor 对应 src/content/stack/<layer>.md 里的二级标题
+const work = [
+  {
+    layer: 'serving',
+    name: 'vLLM-Omni',
+    anchor: 'vllm-omni',
+    role: 'Contributor',
+    since: 'Dec 2025',
+    stat: '7 merged PRs, 4 in review',
+    text: 'Integrated Step-Audio2, plus fixes across duplex sessions, multi-stage pipelines and CI. Now generalizing eager MTP for TTS models.',
+  },
+  {
+    layer: 'serving',
+    name: 'vllm-rlt',
+    anchor: 'vllm-rlt',
+    role: 'Owner of the M5 refactor',
+    since: '2026',
+    stat: '2 PRs in review',
+    text: 'The executor, worker and model runner of a vLLM-based engine for looped transformers.',
+  },
+  {
+    layer: 'serving',
+    name: 'semantic-router',
+    anchor: 'semantic-router',
+    role: 'Working group member',
+    since: 'Aug 2026',
+    stat: '4 merged PRs',
+    text: 'Router models and inference runtime, and developer experience.',
+  },
+  {
+    layer: 'agent',
+    name: 'OpenDazi',
+    anchor: 'opendazi',
+    role: 'Author',
+    since: 'Aug 2026',
+    stat: 'Private',
+    text: 'A desktop AI agent for local files: chat, a task board, reusable workflows, and meetings that turn into action items.',
+  },
+  {
+    layer: 'agent',
+    name: 'verl-agentic',
+    anchor: 'verl-agentic',
+    role: 'Author',
+    stat: 'Private',
+    text: 'Step-level learning signals for RL on Android GUI agents, built on upstream veRL.',
+  },
+  {
+    layer: 'agent',
+    name: 'langextract-vllm',
+    anchor: 'langextract-vllm',
+    role: 'Author',
+    since: 'Sep 2025',
+    stat: '30 stars',
+    text: 'vLLM provider for Google’s LangExtract, listed in its plugin registry.',
+  },
+  {
+    layer: 'kernel',
+    name: 'Kernels in vLLM-Omni',
+    anchor: 'kernels',
+    role: 'Contributor',
+    since: '2026',
+    stat: '2 merged PRs, 2 in review',
+    text: 'The Triton SnakeBeta kernel for bf16 and fp16, and FP8 and INT8 quantization paths.',
+  },
+];
+
+// 按栈从上到下分组，没有项目的层不出现
+const groups = [...layers]
+  .reverse()
+  .map((l) => ({ layer: l, items: work.filter((w) => w.layer === l.id) }))
+  .filter((g) => g.items.length > 0);
+---
+
+<Base title="Work" description="Open-source work on LLM inference, GPU kernels and agent RL.">
+  <main class="wrap">
+    <header class="head">
+      <h1 class="words"><span class="w" style="--d:0">Work</span></h1>
+      <p class="lede rise" style="--delay:0.4s">
+        Open-source projects I contribute to or maintain, grouped by where they sit in the stack. Each one opens the
+        details on its layer's page.
+      </p>
+    </header>
+
+    {groups.map(({ layer, items }) => (
+      <section class="group" data-layer={layer.id}>
+        <div class="group-head" data-reveal>
+          <h2 data-scramble="enter">{layer.name}</h2>
+          <a href={`/stack/${layer.id}/`}>The {layer.name} layer</a>
+        </div>
+        <ul class="works">
+          {items.map((w, k) => (
+            <li data-reveal style={`--k:${k + 1}`}>
+              <a href={`/stack/${w.layer}/#${w.anchor}`}>
+                <div class="name">
+                  <h3>{w.name}</h3>
+                  <span>{w.role}</span>
+                </div>
+                <div class="text">
+                  <p>{w.text}</p>
+                  <p class="meta">
+                    {w.since && <span>Since {w.since}</span>}
+                    <span>{w.stat}</span>
+                  </p>
+                </div>
+                {/* 行尾是这一层的缩略图，悬停时浮起转半圈 */}
+                <span class="thumb" aria-hidden="true">
+                  <span class="layer" data-layer={w.layer}>
+                    {layer.cells.map((v) => <i data-v={v} />)}
+                  </span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </main>
+</Base>
+
+<style>
+  .head { margin: 3rem 0 2rem; }
+  h1 { font-size: clamp(3.25rem, 1.5rem + 6vw, 6.5rem); font-weight: 500; letter-spacing: -0.04em; line-height: 1; margin: 0 0 1.25rem; }
+  .lede { font-size: 1.25rem; color: var(--muted); max-width: 38rem; margin: 0; }
+
+  .group { --c: var(--gpu); margin-top: 4.5rem; }
+  .group[data-layer='agent'] { --c: var(--agent); }
+  .group[data-layer='serving'] { --c: var(--serving); }
+  .group[data-layer='kernel'] { --c: var(--kernel); }
+  .group-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--c);
+  }
+  .group-head h2 { margin: 0; font-size: 2rem; font-weight: 500; letter-spacing: -0.02em; color: var(--c); }
+  .group-head a { color: var(--muted); font-size: 0.9375rem; }
+  .group-head a:hover { color: var(--c); }
+
+  .works { list-style: none; margin: 0; padding: 0; }
+  .works li { border-bottom: 1px solid var(--rule); }
+  .works a {
+    position: relative;
+    display: grid;
+    grid-template-columns: 16rem minmax(0, 1fr) 6rem;
+    grid-template-areas: 'name text thumb';
+    align-items: center;
+    gap: 0 2.5rem;
+    padding: 1.5rem 0;
+    text-decoration: none;
+  }
+  /* 悬停时底线用层的颜色从左扫过去 */
+  .works a::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    border-bottom: 1px solid var(--c);
+    transform: scaleX(0);
+    transform-origin: 0 50%;
+    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .works a:is(:hover, :focus-visible)::after { transform: scaleX(1); }
+  .name { grid-area: name; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .works a:is(:hover, :focus-visible) .name { transform: translateX(0.5rem); }
+  .works h3 { margin: 0; font-size: 1.5rem; font-weight: 500; letter-spacing: -0.015em; line-height: 1.25; }
+  .name span { font-size: 0.875rem; color: var(--c); }
+  .text { grid-area: text; max-width: 36rem; }
+  .text p { margin: 0; color: var(--muted); transition: color 0.3s; }
+  .works a:is(:hover, :focus-visible) .text p:first-child { color: var(--ink); }
+  .text .meta { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; margin-top: 0.5rem; font-size: 0.875rem; }
+  .thumb { grid-area: thumb; display: grid; place-items: center; height: 4rem; perspective: 600px; }
+  .thumb .layer {
+    width: 2.9rem;
+    height: 2.9rem;
+    gap: 1px;
+    padding: 8%;
+    transform: rotateX(58deg) rotateZ(-42deg);
+    transition: transform 0.7s var(--spring), box-shadow 0.4s;
+  }
+  .works a:is(:hover, :focus-visible) .thumb .layer {
+    transform: rotateX(58deg) rotateZ(138deg) translateZ(0.9rem);
+    box-shadow: 0 0 0 1px var(--c), 0 0 18px color-mix(in srgb, var(--c) 55%, transparent);
+  }
+
+  @media (max-width: 860px) {
+    .works a { grid-template-columns: minmax(0, 1fr) 4rem; grid-template-areas: 'name thumb' 'text text'; gap: 0.5rem 1rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .works * { transition: none; }
+  }
+</style>

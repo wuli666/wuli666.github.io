@@ -1,0 +1,105 @@
+---
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  lang?: string;
+}
+const {
+  title,
+  description = 'Du Jiaju (wuli666) works on LLM inference, GPU kernels and agent RL.',
+  lang = 'en',
+} = Astro.props;
+const fullTitle = title ? `${title} | wuli666` : 'wuli666';
+const path = Astro.url.pathname;
+const year = new Date().getFullYear();
+---
+
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <!-- 先于渲染打开动效开关，避免待拼合的元素先闪一下 -->
+    <script is:inline>
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('fx');
+    </script>
+  </head>
+  <body>
+    <div class="dots" aria-hidden="true"></div>
+    <header class="wrap top">
+      <a href="/" class="home" data-scramble="hover">wuli666</a>
+      <nav>
+        <a href="/#about" data-scramble="hover">About</a>
+        <a href="/work/" data-scramble="hover" aria-current={path.startsWith('/work') ? 'page' : undefined}>Work</a>
+        <a href="/blog/" data-scramble="hover" aria-current={path.startsWith('/blog') ? 'page' : undefined}>Blog</a>
+        <a href="https://github.com/wuli666" data-scramble="hover">GitHub</a>
+      </nav>
+    </header>
+    <slot />
+    <footer class="wrap">
+      <div class="bottom">
+        <p class="sign" data-scramble="hover">Du Jiaju</p>
+        <nav aria-label="Footer">
+          <a href="/#about">About</a>
+          <a href="/work/">Work</a>
+          <a href="/blog/">Blog</a>
+          <a href="https://github.com/wuli666">GitHub</a>
+        </nav>
+        <p class="fine">© {year} Du Jiaju. Built with Astro.</p>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<script>
+  import '../scripts/fx';
+</script>
+
+<style>
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+  .home { font-weight: 600; text-decoration: none; }
+  nav { display: flex; gap: 1.5rem; }
+  nav a { text-decoration: none; color: var(--muted); }
+  nav a:hover, nav a[aria-current] { color: var(--ink); }
+  .bottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'sign nav' 'fine fine';
+    align-items: end;
+    gap: 1.5rem 2rem;
+    margin-top: 8rem;
+    padding: 2.5rem 0 2.5rem;
+    border-top: 1px solid var(--rule);
+  }
+  /* 名字放大当落款 */
+  .sign {
+    grid-area: sign;
+    margin: 0;
+    font-size: clamp(3rem, 1.5rem + 7vw, 7.5rem);
+    font-weight: 500;
+    letter-spacing: -0.045em;
+    line-height: 0.9;
+  }
+  .bottom nav { grid-area: nav; flex-direction: column; align-items: flex-end; gap: 0.25rem; }
+  .fine { grid-area: fine; margin: 0; font-size: 0.8125rem; color: var(--muted); }
+  @media (max-width: 520px) {
+    .bottom { grid-template-columns: 1fr; grid-template-areas: 'sign' 'nav' 'fine'; }
+    .bottom nav { flex-direction: row; align-items: flex-start; }
+  }
+</style>

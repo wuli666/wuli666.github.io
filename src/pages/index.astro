@@ -1,0 +1,594 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import PostList from '../components/PostList.astro';
+import { layers } from '../stack';
+import { Content as About } from '../about.md';
+
+const posts = (await getCollection('blog', ({ data }) => import.meta.env.DEV || !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 5);
+
+const headline = 'I work on the layers between an agent and the GPU.'.split(' ');
+
+// About 里的经历时间线；颜色从灰色一路走到各层的颜色，就是"沿着栈往下走"
+const path = [
+  { year: '2018', text: 'Computer science at Gansu Agricultural University.' },
+  { year: '2019', text: 'First research: lightweight CNNs for crop disease recognition.' },
+  { year: '2022', text: 'Computer vision engineer: inspection, tracking, TensorRT on edge devices.' },
+  { year: 'Sep 2025', layer: 'agent', text: 'langextract-vllm, a vLLM provider for LangExtract.' },
+  { year: 'Dec 2025', layer: 'serving', text: 'Step-Audio2, my first PR to vLLM-Omni.' },
+  { year: '2026', layer: 'serving', text: 'OpenDazi, semantic-router working groups, and the vllm-rlt worker refactor.' },
+  { year: 'Now', layer: 'kernel', text: 'Eager MTP for TTS models, and writing kernels.' },
+];
+---
+
+<Base>
+  <main class="wrap">
+    <section class="hero">
+      <div class="intro">
+        <p class="hello rise" style="--delay:0s">Hi, I'm Du Jiaju.</p>
+        <h1 class="words">
+          {headline.map((w, i) => (
+            <Fragment>
+              <span class="w" style={`--d:${i}`}>{w}</span>{' '}
+            </Fragment>
+          ))}
+        </h1>
+        <p class="rise" style="--delay:0.8s">
+          wuli666 on GitHub. I contribute to vLLM-Omni, own the worker refactor in vllm-rlt,
+          build the desktop agent OpenDazi, and train GUI agents with RL.
+        </p>
+      </div>
+
+      <figure>
+        <div class="stack">
+          <div class="scene">
+            {layers.map((l, i) => (
+              <a
+                class="layer"
+                href={`/stack/${l.id}/`}
+                aria-label={`${l.name}: what I work on at this layer`}
+                data-layer={l.id}
+                data-path={l.path && JSON.stringify(l.path)}
+                style={`--i:${i}`}
+              >
+                {l.cells.map((v) => <i data-v={v} />)}
+                {/* 爆炸视图里的对齐虚线，连到上一层；请求的光点顺着它往下走 */}
+                {i < layers.length - 1 && [0, 1, 2, 3].map((k) => <span class="axis" data-k={k}><b /></span>)}
+                <span class="tag">
+                  <b>{l.name}</b>
+                  {l.note && <span>{l.note}</span>}
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+        <figcaption class="rise" style="--delay:1.6s">Click a layer to see the work behind it.</figcaption>
+      </figure>
+    </section>
+
+    <!-- 剖析器风格的时间线：一个小推理引擎的模拟，上面的栈跟着它的事件动 -->
+    <section class="trace rise" style="--delay:1.8s" aria-label="Live trace of a simulated inference engine">
+      <header class="trace-head">
+        <div class="trace-title">
+          <h2>Live trace</h2>
+          <p>A simulated engine serving two GUI agents and background traffic, played at 1/20 speed.</p>
+        </div>
+        <dl class="stats">
+          <div><dt>Throughput</dt><dd><b data-stat="tps">0</b> tok/s</dd></div>
+          <div><dt>Batch</dt><dd><b data-stat="batch">0</b></dd></div>
+          <div><dt>TTFT</dt><dd><b data-stat="ttft">–</b></dd></div>
+          <div><dt>TPOT</dt><dd><b data-stat="tpot">–</b></dd></div>
+          <div><dt>KV cache</dt><dd><b data-stat="kv">0%</b></dd></div>
+          <div><dt>MTP accept</dt><dd><b data-stat="accept">off</b></dd></div>
+        </dl>
+      </header>
+      <div class="knobs" role="group" aria-label="Engine features">
+        <button type="button" data-knob="tp2" aria-pressed="true" title="Split every layer across two GPUs; each block ends in an all-reduce">Tensor parallel ×2</button>
+        <button type="button" data-knob="sp" aria-pressed="true" title="On long prefills, swap the all-reduce for reduce-scatter and all-gather">Sequence parallel</button>
+        <button type="button" data-knob="mtp" aria-pressed="true" title="Two draft heads propose extra tokens on every decode step">MTP</button>
+        <button type="button" data-knob="graph" aria-pressed="true" title="Replay each decode step as one graph instead of launching kernels one by one">CUDA graph</button>
+        <button type="button" data-knob="prefix" aria-pressed="true" title="The agents share a system prompt; reuse its KV cache instead of recomputing it">Prefix cache</button>
+      </div>
+      <div class="trace-body">
+        <canvas aria-hidden="true"></canvas>
+        <div class="tip" hidden></div>
+      </div>
+      <p class="legend">
+        <span><i class="comm"></i>collective</span>
+        <span><i class="prefix"></i>shared prefix</span>
+        <span><i class="preempt"></i>preemption</span>
+        <span><i class="switch"></i>switch flipped</span>
+        <span class="hint">Hover any bar for details.</span>
+      </p>
+    </section>
+
+    <section class="block about" id="about">
+      <h2 class="section" data-scramble="enter">About</h2>
+      <div class="about-grid">
+        <div class="prose" data-reveal><About /></div>
+        <dl data-reveal style="--k:1">
+          <div><dt>Now</dt><dd>LLM inference, GPU kernels, agents</dd></div>
+          <div>
+            <dt>Layers</dt>
+            <dd class="layer-links">
+              {[...layers].reverse().map((l) => (
+                <a href={`/stack/${l.id}/`}><span class="mark" data-layer={l.id} aria-hidden="true" />{l.name}</a>
+              ))}
+            </dd>
+          </div>
+          <div><dt>Elsewhere</dt><dd><a href="https://github.com/wuli666">GitHub</a></dd></div>
+        </dl>
+      </div>
+      <h3 class="path-title">How I got here</h3>
+      <ol class="path" data-reveal="path">
+        {path.map((m, k) => (
+          <li data-layer={m.layer} style={`--k:${k}`}>
+            <time>{m.year}</time>
+            <p>{m.text}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section class="block">
+      <h2 class="section" data-scramble="enter">Blog</h2>
+      <PostList posts={posts} />
+      {posts.length > 0 && <p class="more"><a href="/blog/">All posts</a></p>}
+    </section>
+  </main>
+</Base>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 2rem;
+    min-height: min(78vh, 46rem);
+  }
+  h1 {
+    font-size: clamp(2.25rem, 1.1rem + 3.4vw, 4rem);
+    font-weight: 500;
+    line-height: 1.06;
+    letter-spacing: -0.025em;
+    margin: 0 0 1.75rem;
+    max-width: 11em;
+    text-wrap: balance;
+  }
+  .intro p { max-width: 34rem; color: var(--muted); font-size: 1.0625rem; margin: 0; }
+  .intro .hello { color: var(--ink); font-size: 1.25rem; font-weight: 500; margin-bottom: 1rem; }
+
+  /* ---------- 爆炸视图 ---------- */
+  figure { --p: 0; margin: 0; } /* --p：滚动进度，0 → 1 时各层像发牌一样散开 */
+  .stack {
+    --s: 15rem;
+    --g0: 4.25rem;
+    --gap: calc(var(--g0) * (1 + var(--p) * 1.6));
+    --rx: 58deg;
+    --rz: -42deg;
+    --spin: calc(var(--rz) + var(--p) * 70deg);
+    --ease: cubic-bezier(0.2, 0.9, 0.25, 1.12);
+    --follow: 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+    display: grid;
+    place-items: center;
+    height: 29rem;
+    padding-right: 9rem; /* 给右侧的标注留位置 */
+    perspective: 2400px;
+  }
+  .scene {
+    position: relative;
+    width: var(--s);
+    height: var(--s);
+    transform-style: preserve-3d;
+    /* 用不随滚动变化的 --g0 居中：滚动时各层只往上散开，最底下的 GPU 不往下压 */
+    transform: rotateX(var(--rx)) rotateZ(var(--spin)) translateZ(calc(var(--g0) * -1.5));
+    transition: transform var(--follow);
+  }
+  .layer {
+    --lift: 0px;
+    --ls: calc(var(--p) * (var(--i) - 1.5) * 32deg);
+    position: absolute;
+    inset: 0;
+    color: inherit;
+    text-decoration: none;
+    transform: translateZ(calc(var(--i) * var(--gap) + var(--lift))) rotateZ(var(--ls));
+    transition: transform 0.6s var(--ease);
+    animation: land 1s var(--ease) backwards;
+    animation-delay: calc(0.1s + var(--i) * 0.16s);
+  }
+  .layer:is(:hover, :focus-visible) { --lift: 1.25rem; transition-duration: 0.3s; }
+
+  /* 四角的对齐虚线：立起来（rotateX 90°）连到上一层 */
+  .axis {
+    position: absolute;
+    width: 1px;
+    height: var(--gap);
+    transform-origin: 0 0;
+    transform: rotateX(90deg);
+    background: repeating-linear-gradient(color-mix(in srgb, var(--ink) 35%, transparent) 0 3px, transparent 3px 7px);
+    opacity: calc(1 - var(--p) * 5);
+    animation: show 0.5s backwards;
+    animation-delay: calc(1s + var(--i) * 0.16s);
+  }
+  .axis[data-k='1'] { left: 100%; }
+  .axis[data-k='2'] { top: 100%; }
+  .axis[data-k='3'] { left: 100%; top: 100%; }
+  .axis b {
+    position: absolute;
+    left: -1px;
+    width: 3px;
+    height: 35%;
+    background: linear-gradient(transparent, var(--c));
+    box-shadow: 0 0 10px var(--c);
+    opacity: 0;
+  }
+
+  /* 标注挂在每层右下角，反向旋转让它正对屏幕 */
+  .tag {
+    position: absolute;
+    left: 100%;
+    top: 100%;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding-left: 3rem;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    transform-origin: 0 0;
+    /* 原点在角上；最后的 translateY 让引线正好对准角 */
+    transform: rotateZ(calc(-1 * (var(--spin) + var(--ls)))) rotateX(calc(var(--rx) * -1)) translateY(-50%);
+    transition: transform var(--follow), opacity 0.3s;
+    animation: show 0.5s backwards;
+    animation-delay: calc(0.9s + var(--i) * 0.16s);
+  }
+  .tag::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 2.5rem;
+    border-top: 1px solid var(--c);
+  }
+  .tag b { font-weight: 600; color: var(--c); }
+  .tag span { color: var(--muted); }
+  .layer:is(:hover, :focus-visible) .tag span { color: var(--ink); }
+  .leaving :is(.tag, .axis) { opacity: 0; transition: opacity 0.15s; }
+
+  figcaption {
+    color: var(--muted);
+    font-size: 0.8125rem;
+    text-align: center;
+    padding-right: 9rem;
+    opacity: calc(1 - var(--p) * 4);
+  }
+
+  .block { margin-top: 5rem; }
+
+  /* ---------- About ---------- */
+  .about-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 17rem;
+    gap: 2rem 5rem;
+    align-items: start;
+  }
+  .about .prose { font-size: 1.125rem; }
+  /* 第一段放大当引言 */
+  .about :global(.prose p:first-child) { font-size: 1.375rem; line-height: 1.6; letter-spacing: -0.01em; }
+  .about-grid dl { display: grid; gap: 1.25rem; margin: 0.4rem 0 0; padding-left: 1.5rem; border-left: 1px solid var(--rule); }
+  .about-grid dt { font-size: 0.875rem; color: var(--muted); }
+  .about-grid dd { margin: 0.15rem 0 0; }
+
+  .layer-links { display: flex; flex-direction: column; gap: 0.15rem; }
+  .layer-links a { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; }
+  .layer-links a:hover { text-decoration: underline; }
+
+  /* ---------- 经历时间线 ---------- */
+  .path-title { margin: 4rem 0 1.5rem; font-size: 0.875rem; font-weight: 500; color: var(--muted); }
+  .path {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 1.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .path::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0.35rem;
+    border-top: 1px solid var(--rule);
+    transform-origin: 0 50%;
+    transition: transform 1.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .path li { --c: var(--muted); position: relative; padding-top: 1.5rem; }
+  .path li[data-layer='agent'] { --c: var(--agent); }
+  .path li[data-layer='serving'] { --c: var(--serving); }
+  .path li[data-layer='kernel'] { --c: var(--kernel); }
+  .path li::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0.7rem;
+    height: 0.7rem;
+    background: var(--c);
+    transform: rotate(45deg);
+    transition: transform 0.6s var(--spring) calc(var(--k) * 140ms + 200ms);
+  }
+  .path li > * { transition: opacity 0.6s calc(var(--k) * 140ms + 350ms), transform 0.6s calc(var(--k) * 140ms + 350ms); }
+  .path time { display: block; font-size: 0.9375rem; font-weight: 600; color: var(--c); }
+  .path p { margin: 0.3rem 0 0; font-size: 0.875rem; line-height: 1.5; color: var(--muted); }
+  /* 进入视口前：线没画、点没出、字没现 */
+  :global(.fx) .path:not(.in)::before { transform: scaleX(0); }
+  :global(.fx) .path:not(.in) li::before { transform: rotate(45deg) scale(0); }
+  :global(.fx) .path:not(.in) li > * { opacity: 0; transform: translateY(0.5rem); }
+
+  /* ---------- 时间线 trace ---------- */
+  /* 一块实底的面板：背景点阵不再透进来；叠在上面，栈往下展开时不压住指标 */
+  .trace {
+    position: relative;
+    z-index: 1;
+    margin-top: 1rem;
+    padding: 1.25rem 1.5rem 1rem;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: var(--paper);
+    box-shadow: 0 30px 60px -45px color-mix(in srgb, var(--ink) 45%, transparent);
+  }
+  .trace-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 1rem 2.5rem; }
+  .trace-title h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+  .trace-title p { margin: 0.2rem 0 0; max-width: 22rem; font-size: 0.8125rem; color: var(--muted); }
+  .stats { display: grid; grid-template-columns: repeat(6, auto); gap: 0.4rem 1.75rem; margin: 0; }
+  .stats dt { font-size: 0.75rem; color: var(--muted); }
+  .stats dd { margin: 0.1rem 0 0; font-size: 0.8125rem; color: var(--muted); white-space: nowrap; }
+  .stats b { font-size: 1.0625rem; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .knobs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 1.1rem 0 0.9rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .knobs button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+  }
+  /* 前面的小方块是开关灯 */
+  .knobs button::before {
+    content: '';
+    width: 0.45rem;
+    height: 0.45rem;
+    border: 1px solid currentColor;
+    transform: rotate(45deg);
+    transition: background-color 0.2s;
+  }
+  .knobs button[aria-pressed='true'] { color: var(--ink); border-color: var(--ink); }
+  .knobs button[aria-pressed='true']::before { background: var(--kernel); border-color: var(--kernel); }
+  .knobs button:hover:not(:disabled) { border-color: var(--ink); }
+  .knobs button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .trace-body { position: relative; }
+  .trace canvas { display: block; width: 100%; }
+  .tip {
+    position: absolute;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    max-width: 18rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--paper);
+    box-shadow: 0 8px 24px -12px color-mix(in srgb, var(--ink) 40%, transparent);
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: var(--muted);
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .tip[hidden] { display: none; }
+  .tip :global(b) { color: var(--ink); font-weight: 600; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.25rem; margin: 0.6rem 0 0; font-size: 0.75rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .legend i { display: inline-block; }
+  .legend .comm { width: 1rem; height: 4px; border-radius: 2px; background: var(--muted); opacity: 0.6; }
+  .legend .prefix { width: 1rem; height: 0.5rem; background: var(--serving); opacity: 0.45; }
+  .legend .preempt { border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 6px solid var(--ink); }
+  .legend .switch { height: 0.85rem; border-left: 1px dashed var(--ink); }
+  .legend .hint { margin-left: auto; }
+
+  .more { margin: 1rem 0 0; }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; min-height: 0; padding-top: 2rem; }
+    .stack { --s: 9.5rem; --g0: 2.75rem; height: 19rem; padding-right: 7.5rem; }
+    figcaption { padding-right: 7.5rem; }
+    .tag { flex-direction: column; gap: 0; padding-left: 1.5rem; font-size: 0.75rem; line-height: 1.35; }
+    .tag::before { width: 1.125rem; }
+    .trace { padding: 1rem 0.75rem 0.75rem; }
+    .stats { grid-template-columns: repeat(3, auto); }
+    .legend .hint { margin-left: 0; }
+    .path { grid-template-columns: 1fr; gap: 1.25rem; padding-left: 1.75rem; }
+    .path::before { left: 0.33rem; right: auto; top: 0.35rem; bottom: 0; border-top: 0; border-left: 1px solid var(--rule); transform-origin: 50% 0; }
+    :global(.fx) .path:not(.in)::before { transform: scaleY(0); }
+    .path li { padding-top: 0; }
+    .path li::before { top: 0.35rem; left: -1.75rem; }
+    .about-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .layer, .tag, .axis { animation: none; }
+    .scene, .layer, .tag, .path, .path * { transition: none; }
+  }
+</style>
+
+<script>
+  import { motion, scramble } from '../scripts/fx';
+  import { glow, reactor } from '../scripts/stack';
+  import { createTrace } from '../scripts/trace';
+
+  const stack = document.querySelector<HTMLElement>('.stack')!;
+  const layerEls = [...stack.querySelectorAll<HTMLAnchorElement>('.layer')];
+  const layer = (id: string) => layerEls.find((l) => l.dataset.layer === id)!;
+  let exits: Animation[] = [];
+
+  // 光点顺着虚线从上一层落到这一层
+  const drop = (id: string) =>
+    layer(id)
+      .querySelectorAll<HTMLElement>('.axis b')
+      .forEach((b) =>
+        b.animate(
+          [
+            { opacity: 1, transform: 'translateY(290%)' },
+            { opacity: 1, transform: 'translateY(-100%)' },
+          ],
+          { duration: 420, easing: 'cubic-bezier(.5,0,.8,.4)' },
+        ),
+      );
+
+  // 栈对引擎事件的反应：格子每次都动，发光和光点同一层半秒内只来一次
+  const react = Object.fromEntries(['agent', 'serving', 'kernel', 'gpu'].map((id) => [id, reactor(layer(id))]));
+  const below: Record<string, string> = { agent: 'serving', serving: 'kernel', kernel: 'gpu' };
+  const lastGlow: Record<string, number> = {};
+  function fire(id: string) {
+    if (!motion || exits.length) return;
+    react[id]();
+    const t = performance.now();
+    if (t - (lastGlow[id] ?? 0) < 500) return;
+    lastGlow[id] = t;
+    glow(layer(id));
+    if (below[id]) drop(below[id]);
+  }
+
+  const section = document.querySelector<HTMLElement>('.trace')!;
+  const canvas = section.querySelector<HTMLCanvasElement>('.trace-body canvas')!;
+  const stats = Object.fromEntries(
+    [...section.querySelectorAll<HTMLElement>('[data-stat]')].map((el) => [el.dataset.stat!, el]),
+  );
+  const trace = createTrace(canvas, section.querySelector<HTMLElement>('.tip')!, stats, {
+    request: () => fire('agent'),
+    prefill: () => fire('serving'),
+    kernel: () => fire('kernel'),
+    gpu: () => fire('gpu'),
+  });
+
+  // 开关：序列并行只有在张量并行开着时才有意义
+  const knobs = [...section.querySelectorAll<HTMLButtonElement>('[data-knob]')];
+  const spButton = knobs.find((b) => b.dataset.knob === 'sp')!;
+  for (const b of knobs)
+    b.addEventListener('click', () => {
+      const on = b.getAttribute('aria-pressed') !== 'true';
+      b.setAttribute('aria-pressed', String(on));
+      trace.set(b.dataset.knob as keyof typeof trace.knobs, on);
+      if (b.dataset.knob === 'tp2') spButton.disabled = !on;
+      if (!motion) trace.draw();
+    });
+
+  if (motion) {
+    const hero = document.querySelector<HTMLElement>('.hero')!;
+    const figure = stack.parentElement!;
+
+    // 鼠标带着整个视图转（只认鼠标，触屏不转）
+    hero.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const r = stack.getBoundingClientRect();
+      const dx = (e.clientX - r.left - r.width / 2) / innerWidth;
+      const dy = (e.clientY - r.top - r.height / 2) / innerHeight;
+      stack.style.setProperty('--rz', `${-42 + dx * 30}deg`);
+      stack.style.setProperty('--rx', `${58 - dy * 20}deg`);
+    });
+    hero.addEventListener('pointerleave', () => {
+      stack.style.removeProperty('--rz');
+      stack.style.removeProperty('--rx');
+    });
+
+    // 往下滚，各层越拉越开并各自转开
+    let queued = false;
+    addEventListener(
+      'scroll',
+      () => {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => {
+          queued = false;
+          figure.style.setProperty('--p', Math.min(1, scrollY / (hero.offsetHeight * 0.85)).toFixed(3));
+        });
+      },
+      { passive: true },
+    );
+
+    for (const l of layerEls) l.addEventListener('pointerenter', () => scramble(l.querySelector('.tag b')!));
+
+    // 点一层：这一层朝屏幕飞出来，其余的往下掉，然后进入这一层的页面
+    stack.addEventListener('click', (e) => {
+      const a = (e.target as Element).closest<HTMLAnchorElement>('a.layer');
+      if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || exits.length) return;
+      e.preventDefault();
+      stack.classList.add('leaving');
+      exits = layerEls.map((l) => {
+        const m = getComputedStyle(l).transform;
+        const to = l === a ? `${m} translateZ(16rem) rotateZ(200deg) scale(1.2)` : `${m} translateZ(-14rem)`;
+        return l.animate([{ transform: m }, { transform: to, opacity: 0 }], {
+          duration: l === a ? 650 : 450,
+          easing: 'cubic-bezier(.55,0,.85,.35)',
+          fill: 'forwards',
+        });
+      });
+      exits[layerEls.indexOf(a)].finished.then(() => (location.href = a.href));
+    });
+    // 按返回键从 bfcache 回来时把栈复原
+    addEventListener('pageshow', (e) => {
+      if (!e.persisted) return;
+      exits.forEach((x) => x.cancel());
+      exits = [];
+      stack.classList.remove('leaving');
+    });
+
+    // 模拟引擎：栈或 trace 有一个看得见就继续跑，trace 看得见才画
+    let heroVisible = true;
+    let traceVisible = false;
+    let raf = 0;
+    let prev = 0;
+    const loop = (t: number) => {
+      trace.tick(prev ? t - prev : 16);
+      prev = t;
+      if (traceVisible) trace.draw();
+      raf = requestAnimationFrame(loop);
+    };
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.target === section) traceVisible = e.isIntersecting;
+        else heroVisible = e.isIntersecting;
+      }
+      cancelAnimationFrame(raf);
+      prev = 0;
+      if (heroVisible || traceVisible) raf = requestAnimationFrame(loop);
+    });
+    // 等开场的栈落定再开始
+    setTimeout(() => {
+      io.observe(stack);
+      io.observe(section);
+    }, 1700);
+  } else {
+    // 减少动效：后台快进 8 秒，画一张静态快照
+    for (let i = 0; i < 500; i++) trace.tick(16);
+    const still = () => trace.draw();
+    still();
+    addEventListener('resize', still);
+  }
+</script>

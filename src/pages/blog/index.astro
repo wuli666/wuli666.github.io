@@ -1,0 +1,21 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PostList from '../../components/PostList.astro';
+
+const posts = (await getCollection('blog', ({ data }) => import.meta.env.DEV || !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<Base title="Blog" description="Notes on LLM inference, GPU kernels and agent RL.">
+  <main class="wrap">
+    <h1 data-scramble="enter">Blog</h1>
+    <p class="lede">Notes on inference engines, GPU kernels and agent RL.</p>
+    <PostList posts={posts} />
+  </main>
+</Base>
+
+<style>
+  h1 { font-size: 2.5rem; font-weight: 500; letter-spacing: -0.02em; margin: 3rem 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 2.5rem; }
+</style>
