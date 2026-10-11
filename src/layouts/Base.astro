@@ -4,6 +4,7 @@ import '@fontsource/ibm-plex-sans/500.css';
 import '@fontsource/ibm-plex-sans/600.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '../styles/global.css';
+import { email, phone } from '../contact';
 
 interface Props {
   title?: string;
@@ -55,6 +56,10 @@ const year = new Date().getFullYear();
           <a href="/blog/">Blog</a>
           <a href="https://github.com/wuli666">GitHub</a>
         </nav>
+        <p class="reach">
+          <a data-contact={email} data-kind="email" href="/#about">Email</a>
+          <a data-contact={phone} data-kind="tel" href="/#about">Phone</a>
+        </p>
         <p class="fine">© {year} Du Jiaju. Built with Astro.</p>
       </div>
     </footer>
@@ -80,7 +85,7 @@ const year = new Date().getFullYear();
   .bottom {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: 'sign nav' 'fine fine';
+    grid-template-areas: 'sign nav' 'reach reach' 'fine fine';
     align-items: end;
     gap: 1.5rem 2rem;
     margin-top: 8rem;
@@ -97,9 +102,10 @@ const year = new Date().getFullYear();
     line-height: 0.9;
   }
   .bottom nav { grid-area: nav; flex-direction: column; align-items: flex-end; gap: 0.25rem; }
+  .reach { grid-area: reach; display: flex; flex-wrap: wrap; gap: 0.25rem 1.75rem; margin: 0; font-variant-numeric: tabular-nums; }
   .fine { grid-area: fine; margin: 0; font-size: 0.8125rem; color: var(--muted); }
   @media (max-width: 520px) {
-    .bottom { grid-template-columns: 1fr; grid-template-areas: 'sign' 'nav' 'fine'; }
+    .bottom { grid-template-columns: 1fr; grid-template-areas: 'sign' 'nav' 'reach' 'fine'; }
     .bottom nav { flex-direction: row; align-items: flex-start; }
   }
 </style>

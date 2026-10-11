@@ -23,6 +23,13 @@ export function scramble(el: HTMLElement) {
   requestAnimationFrame(frame);
 }
 
+// 联系方式：HTML 里是 base64，这里还原成可以点的链接
+document.querySelectorAll<HTMLAnchorElement>('[data-contact]').forEach((a) => {
+  const v = atob(a.dataset.contact!);
+  a.href = a.dataset.kind === 'email' ? `mailto:${v}` : `tel:${v.replace(/\s/g, '')}`;
+  a.textContent = v;
+});
+
 if (motion) {
   // 进入视口时加上 .in（CSS 据此浮现、画线），[data-scramble=enter] 顺便解码
   const io = new IntersectionObserver(

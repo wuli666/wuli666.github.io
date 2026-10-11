@@ -4,6 +4,7 @@ import Base from '../layouts/Base.astro';
 import PostList from '../components/PostList.astro';
 import { layers } from '../stack';
 import { Content as About } from '../about.md';
+import { email, phone } from '../contact';
 
 const posts = (await getCollection('blog', ({ data }) => import.meta.env.DEV || !data.draft))
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
@@ -118,7 +119,14 @@ const path = [
               ))}
             </dd>
           </div>
-          <div><dt>Elsewhere</dt><dd><a href="https://github.com/wuli666">GitHub</a></dd></div>
+          <div>
+            <dt>Contact</dt>
+            <dd class="contact">
+              <a data-contact={email} data-kind="email" href="#about">Email</a>
+              <a data-contact={phone} data-kind="tel" href="#about">Phone</a>
+              <a href="https://github.com/wuli666">GitHub</a>
+            </dd>
+          </div>
         </dl>
       </div>
       <h3 class="path-title">How I got here</h3>
@@ -280,7 +288,8 @@ const path = [
   .about-grid dt { font-size: 0.875rem; color: var(--muted); }
   .about-grid dd { margin: 0.15rem 0 0; }
 
-  .layer-links { display: flex; flex-direction: column; gap: 0.15rem; }
+  .layer-links, .contact { display: flex; flex-direction: column; gap: 0.15rem; }
+  .contact a { width: fit-content; font-variant-numeric: tabular-nums; }
   .layer-links a { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; }
   .layer-links a:hover { text-decoration: underline; }
 
